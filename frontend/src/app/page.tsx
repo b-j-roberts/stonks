@@ -113,7 +113,6 @@ import { Chain, sepolia } from "@starknet-react/chains";
 import { StarknetConfig, starkscan } from "@starknet-react/core";
 import { RpcProvider } from "starknet";
 import ControllerConnector from "@cartridge/connector";
-import Connector from "@starknet-react/core";
 
 const ETH_TOKEN_ADDRESS =
   "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
@@ -173,7 +172,7 @@ const App = () => {
   }, [address, connector]);
 
   const doConnect = () => {
-    const conn = connector as unknown as Connector.Connector;
+    const conn = connector as any;
     connect({ connector: conn });
   }
 
