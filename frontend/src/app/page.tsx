@@ -109,7 +109,68 @@ const pixelsFont = localFont({
   variable: '--font-pixels'
 });
 
-export default function Home() {
+import { Chain, sepolia } from "@starknet-react/chains";
+import { StarknetConfig, starkscan } from "@starknet-react/core";
+import { RpcProvider } from "starknet";
+import ControllerConnector from "@cartridge/connector";
+
+const ETH_TOKEN_ADDRESS =
+  "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
+
+function provider(chain: Chain) {
+  return new RpcProvider({
+    nodeUrl: "https://api.cartridge.gg/x/starknet/sepolia",
+  });
+}
+
+import { useAccount, useConnect, useDisconnect } from "@starknet-react/core";
+
+const StarknetProvider = ({ children }) => {
+  const connector = new ControllerConnector({
+    policies: [
+      {
+        target: ETH_TOKEN_ADDRESS,
+        method: "approve",
+        description:
+          "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
+      },
+      {
+        target: ETH_TOKEN_ADDRESS,
+        method: "transfer",
+      },
+      // Add more policies as needed
+    ],
+    rpc: "https://api.cartridge.gg/x/starknet/sepolia",
+    // Uncomment to use a custom theme
+    // theme: "dope-wars",
+    // colorMode: "light"
+  });
+
+  return (
+    <StarknetConfig
+      autoConnect
+      chains={[sepolia]}
+      connectors={[connector]}
+      explorer={starkscan}
+      provider={provider}
+    >
+      {children}
+    </StarknetConfig>
+  );
+}
+
+const App = () => {
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { address } = useAccount();
+  const connector = connectors[0] as ControllerConnector;
+
+  const [username, setUsername] = useState<string>();
+  useEffect(() => {
+    if (!address) return;
+    connector.username()?.then((n) => setUsername(n));
+  }, [address, connector]);
+
   const memecoins = [
       {
           "name": "To The Moon",
@@ -125,7 +186,7 @@ export default function Home() {
           "ticker": "WLFZ",
           "balance": 0.00000000,
           "denom": 0.0001,
-          "cost": 0.10,
+          "cost": 10.10,
           "change": 20.2,
           "multiplier": 2
       },
@@ -134,7 +195,7 @@ export default function Home() {
           "ticker": "SFR",
           "balance": 0.00000000,
           "denom": 0.01,
-          "cost": 0.50,
+          "cost": 1.50,
           "change": -30.4,
           "multiplier": 1
       },
@@ -143,7 +204,7 @@ export default function Home() {
           "ticker": "BM",
           "balance": 0.00000000,
           "denom": 0.00001,
-          "cost": 0.01,
+          "cost": 100.69,
           "change": 0.0,
           "multiplier": 1
       },
@@ -152,12 +213,21 @@ export default function Home() {
           "ticker": "COOLC",
           "balance": 0.00000000,
           "denom": 0.0001,
-          "cost": 0.10,
+          "cost": 0.90,
           "change": -100.4,
           "multiplier": 1
       }
   ];
   const [balances, setBalances] = useState(memecoins.map(memecoin => memecoin.balance));
+  const [spendingPower, setSpendingPower] = useState(0.0);
+  const [netWorth, setNetWorth] = useState(0.0);
+  useEffect(() => {
+      let newTotalBalance = 0.0;
+      balances.forEach((balance, i) => {
+          newTotalBalance += balance * memecoins[i].cost;
+      });
+      setNetWorth(newTotalBalance + spendingPower);
+  }, [balances, spendingPower, memecoins]);
 
   const [storeOpen, setStoreOpen] = useState(false);
   const openStore = () => {
@@ -206,15 +276,78 @@ export default function Home() {
     <div className={`items-center justify-items-center p-0 h-full ${pixelsFont.variable} font-sans`}>
       <main className="flex flex-col gap-0 row-start-2 items-center justify-center w-full h-full">
         <div className="flex flex-row justify-between gap-1 bg-gradient-to-br from-[#1c36a3] to-[#1632a0] w-[99%] shadow-lg shadow-black-500/50 my-2 rounded-full border-2 border-[#467eb3]">
-          <h1 className="text-3xl text-slate-150 ml-5 mt-3">
+          <h1 className="text-3xl text-slate-150 ml-5 mt-4">
               stonks
           </h1>
           <div className="flex flex-row gap-3 mr-5">
+              {address && (
+                <div className="flex flex-row gap-10 items-center">
+                    <div className="flex flex-row gap-1 items-center">
+                        <Image
+                            src="/icons/money.png"
+                            alt="Wallet"
+                            width={30}
+                            height={30}
+                            className="py-3 px-0"
+                        />
+                        <h4 className="text-md text-slate-150 pt-2 mr-1 text-center">
+                            Spending Power:
+                        </h4>
+                        <h4 className="text-md text-slate-150 pt-2 mr-1 text-center">
+                            {spendingPower.toFixed(2)} USD
+                        </h4>
+                    </div>
+                    <div className="flex flex-row gap-1 items-center">
+                        <Image
+                            src="/icons/stock.png"
+                            alt="Wallet"
+                            width={30}
+                            height={30}
+                            className="py-3 px-0"
+                        />
+                        <h4 className="text-md text-slate-150 pt-2 mr-1 text-center">
+                            Net Worth:
+                        </h4>
+                        <h4 className="text-md text-slate-150 pt-2 mr-1 text-center">
+                            {netWorth.toFixed(2)} USD
+                        </h4>
+                    </div>
+                    {username &&
+                        <div className="flex flex-row gap-2 items-center">
+                        <Image
+                            src="/icons/user.png"
+                            alt="User"
+                            width={20}
+                            height={20}
+                            className="py-3 px-0"
+                        />
+                        <p
+                            className="text-md text-slate-150 pt-2 mr-1 text-center"
+                        >
+                            {username}
+                        </p>
+                        </div>
+                    }
+                </div>
+              )}
+              <button
+                className="rounded-xl justify-center items-center px-2 pt-2 m-1
+                bg-gradient-to-br from-[#f6a021] to-[#f6c041] border-2 border-[#a67011] rounded-full
+                text-slate-950
+                focus:outline-none shadow-sm hover:drop-shadow-md
+                transition duration-100 ease-in-out hover:scale-[102%] active:scale-[98%] hover:shadow-lg"
+                onClick={() => {
+                  address ? disconnect() : connect({ connector });
+                }}
+              >
+                {address ? "Logout" : "Login"}
+              </button>
               <button
                   onClick={openStore}
                   className="rounded-xl justify-center items-center p- rounded-[100%]
                   focus:outline-none drop-shadow-sm hover:drop-shadow-md
-                  transition duration-300 ease-in-out hover:scale-110"
+                  transition duration-300 ease-in-out hover:scale-110
+                  active:scale-95"
               >
                   <Image
                       src="/icons/store.png"
@@ -227,7 +360,8 @@ export default function Home() {
                   onClick={openSettings}
                   className="rounded-xl justify-center items-center p-0 rounded-[100%]
                   focus:outline-none drop-shadow-sm hover:drop-shadow-md
-                  transition duration-300 ease-in-out hover:scale-110"
+                  transition duration-300 ease-in-out hover:scale-110
+                  active:scale-95"
               >
                   <Image
                       src="/icons/gear.png"
@@ -266,6 +400,7 @@ export default function Home() {
                             {balances[index].toFixed(5)} {memecoin.ticker}
                         </h3>
                         <p className={`text-sm ${memecoin.change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}`}>
+                            {memecoin.change >= 0 ? "+" : ""}
                             {memecoin.change.toFixed(1)}%
                         </p>
                         <p className={`text-xs ${memecoin.change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}`}>
@@ -331,16 +466,38 @@ export default function Home() {
                             Sell
                         </button>
                     </div>
-                    <div className={`flex flex-col gap-1 items-center h-full
+                    <div className={`flex flex-row gap-1 items-center h-24 p-2
                                     border-r-2 border-[#467eb380] border-dotted
                                     ${index % 2 === 1 ? 'bg-[#00000000]' : 'bg-[#0030b080]'}
                                     `}>
-                        <Line data={data[index]} className="w-full h-full" options={options} />
+                        <Line data={data[index]} className="w-full h-20" options={options} />
+                        <div className="flex flex-col gap-1">
+                            <p className={`text-xs text-slate-150 ml-8 text-center
+                                        ${memecoin.change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}
+                                        `}>
+                                {memecoin.cost.toFixed(2)} USD
+                            </p>
+                            <p className={`text-xs text-slate-150 ml-8 text-center
+                                        ${memecoin.change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}
+                                        `}>
+                                {memecoin.change >= 0 ? "+" : ""}
+                                {memecoin.change.toFixed(1)}%
+                            </p>
+                        </div>
                     </div>
                 </div>
             ))}
         </div>
       </main>
     </div>
+  );
+}
+
+export default function Home() {
+
+  return (
+    <StarknetProvider>
+      <App />
+    </StarknetProvider>
   );
 }
