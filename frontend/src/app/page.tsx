@@ -117,7 +117,7 @@ import ControllerConnector from "@cartridge/connector";
 const ETH_TOKEN_ADDRESS =
   "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
 
-function provider(chain: Chain) {
+function provider(_chain: Chain) {
   return new RpcProvider({
     nodeUrl: "https://api.cartridge.gg/x/starknet/sepolia",
   });
@@ -219,7 +219,7 @@ const App = () => {
       }
   ];
   const [balances, setBalances] = useState(memecoins.map(memecoin => memecoin.balance));
-  const [spendingPower, setSpendingPower] = useState(0.0);
+  const [spendingPower, _setSpendingPower] = useState(0.0);
   const [netWorth, setNetWorth] = useState(0.0);
   useEffect(() => {
       let newTotalBalance = 0.0;
