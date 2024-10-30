@@ -150,7 +150,7 @@ const StarknetProvider = (children: any) => {
     <StarknetConfig
       autoConnect
       chains={[sepolia]}
-      connectors={[connector]}
+      connectors={[connector as any]}
       explorer={starkscan}
       provider={provider}
     >
@@ -163,7 +163,7 @@ const App = () => {
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { address } = useAccount();
-  const connector = connectors[0] as ControllerConnector;
+  const connector = connectors[0] as unknown as ControllerConnector;
 
   const [username, setUsername] = useState<string>();
   useEffect(() => {
