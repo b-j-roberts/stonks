@@ -125,7 +125,7 @@ function provider(_chain: Chain) {
 
 import { useAccount, useConnect, useDisconnect } from "@starknet-react/core";
 
-const StarknetProvider = ({ children }) => {
+const StarknetProvider = (children: any) => {
   const connector = new ControllerConnector({
     policies: [
       {
