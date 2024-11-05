@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 
 import { useState, useCallback, useEffect } from 'react';
 import 'chart.js/auto';
+import { fetchWrapper, devnetMode } from '../utils/apiService';
 const Line = dynamic(() => import('react-chartjs-2').then((mod) => mod.Line), {
   ssr: false,
 });
@@ -171,6 +172,56 @@ const App = () => {
     connector.username()?.then((n) => setUsername(n));
   }, [address, connector]);
 
+  /* stonks: {
+   * id: number,
+   * name: string,
+   * symbol: string,
+   * denom: number,
+   * }
+   * balances: {
+   * id: number,
+   * balance: number,
+   * }
+  */
+  const [stonks, setStonks] = useState(Array<{ id: number, name: string, symbol: string, denom: number }>());
+  const [balances, setBalances] = useState(Array<number>());
+  const [spendingPower, setSpendingPower] = useState(0.0);
+  useEffect(() => {
+    const fetchGameData = async () => {
+      if (!address) return;
+      let queryAddress = "";
+      if (devnetMode) {
+        queryAddress = "0328ced46664355fc4b885ae7011af202313056a7e3d44827fb24c9d3206aaa0";
+      } else {
+        queryAddress = address.slice(2).toLowerCase().padStart(64, '0');
+      }
+      let response = await fetchWrapper(`get-stonks`);
+      if (!response.data) {
+        console.error("Failed to fetch game data");
+        return;
+      }
+      const stonks = response.data;
+      setStonks(stonks);
+      
+      response = await fetchWrapper(`get-user-balances?address=${queryAddress}`);
+      if (!response.data) {
+        console.error("Failed to fetch user balances");
+        return;
+      }
+      setSpendingPower(response.data.spendingPower);
+      const balances = Array<number>(stonks.length).fill(0);
+      if (!response.data.stonkBalances) {
+        setBalances(balances);
+        return;
+      }
+      response.data.stonkBalances.forEach((balance: any) => {
+        balances[balance.stonkId] = balance.balance;
+      });
+      setBalances(balances);
+    }
+    fetchGameData();
+  }, [address, username]);
+
   const doConnect = () => {
     const conn = connector as any;
     connect({ connector: conn });
@@ -223,8 +274,6 @@ const App = () => {
           "multiplier": 1
       }
   ];
-  const [balances, setBalances] = useState(memecoins.map(memecoin => memecoin.balance));
-  const [spendingPower, _setSpendingPower] = useState(0.0);
   const [netWorth, setNetWorth] = useState(0.0);
   useEffect(() => {
       let newTotalBalance = 0.0;
@@ -253,18 +302,33 @@ const App = () => {
   const [claimAnimations, setClaimAnimations] = useState<Array<ClaimAnimation>>([]);
   const claimAnimTime = 500;
   const claim = useCallback((index: number) => {
-      const now = new Date().getTime();
-      const animId = `plus-animation-${Math.floor(Math.random() * 6) + 1}`;
-      setClaimAnimations([...claimAnimations, { start: now, animId }]);
-      console.log("balances before :", balances, "index :", index);
-      setBalances(balances.map((balance, i) => {
-          if (i === index) {
-              return balance + (memecoins[i].denom * memecoins[i].multiplier);
+      const claimCall = async (index: number) => {
+        const now = new Date().getTime();
+        const animId = `plus-animation-${Math.floor(Math.random() * 6) + 1}`;
+        setClaimAnimations([...claimAnimations, { start: now, animId }]);
+        if (devnetMode) {
+          const result = await fetchWrapper(`claim-stonk-devnet`, {
+            mode: 'cors',
+            method: 'POST',
+            body: JSON.stringify({
+              stonkId: stonks[index].id.toString(),
+            })
+          });
+          if (result.result) {
+            setBalances(balances.map((balance, i) => {
+                if (i === index) {
+                    return balance + (stonks[i].denom * memecoins[i].multiplier);
+                }
+                return balance;
+            }
+            ));
+          } else {
+            console.error("Failed to claim stonk");
           }
-          return balance;
+        }
       }
-      ));
-  }, [claimAnimations, setClaimAnimations, balances, setBalances, memecoins]);
+      claimCall(index);
+  }, [claimAnimations, setClaimAnimations, balances, setBalances, memecoins, stonks]);
 
   const animInterval = claimAnimTime / 5;
   useEffect(() => {
@@ -299,7 +363,7 @@ const App = () => {
                             Spending Power:
                         </h4>
                         <h4 className="text-md text-slate-150 pt-2 mr-1 text-center">
-                            {spendingPower.toFixed(2)} USD
+                            ${spendingPower.toFixed(2)} USD
                         </h4>
                     </div>
                     <div className="flex flex-row gap-1 items-center">
@@ -314,7 +378,7 @@ const App = () => {
                             Net Worth:
                         </h4>
                         <h4 className="text-md text-slate-150 pt-2 mr-1 text-center">
-                            {netWorth.toFixed(2)} USD
+                            ${netWorth.toFixed(2)} USD
                         </h4>
                     </div>
                     {username &&
@@ -380,7 +444,8 @@ const App = () => {
         <div
             className="grid grid-row-1 grid-cols-1 w-full"
         >
-            {memecoins.map((memecoin, index) => (
+            {stonks && balances && stonks.length === balances.length &&
+             stonks.map((memecoin, index) => (
                 <div
                   key={index}
                   className={`h-24 w-full border-[#467eb3] grid grid-cols-[2fr_1fr_2fr_1fr] ${index !== memecoins.length - 1 ? 'border-b-2' : ''}
@@ -394,7 +459,7 @@ const App = () => {
                             {memecoin.name}
                         </h3>
                         <p className="text-md text-slate-150">
-                            ( {memecoin.ticker} )
+                            ( {memecoin.symbol} )
                         </p>
                     </div>
                     <div className={`flex flex-col gap-1 items-center h-full
@@ -402,14 +467,14 @@ const App = () => {
                                     ${index % 2 === 1 ? 'bg-[#00000000]' : 'bg-[#0030b080]'}
                                     `}>
                         <h3 className="text-xl text-slate-150 pt-3">
-                            {balances[index].toFixed(5)} {memecoin.ticker}
+                            {balances[index].toFixed(5)} {memecoin.symbol}
                         </h3>
-                        <p className={`text-sm ${memecoin.change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}`}>
-                            {memecoin.change >= 0 ? "+" : ""}
-                            {memecoin.change.toFixed(1)}%
+                        <p className={`text-sm ${memecoins[memecoin.id].change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}`}>
+                            {memecoins[memecoin.id].change >= 0 ? "+" : ""}
+                            {memecoins[memecoin.id].change.toFixed(1)}%
                         </p>
-                        <p className={`text-xs ${memecoin.change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}`}>
-                            {(memecoin.cost * balances[index]).toFixed(2)} USD
+                        <p className={`text-xs ${memecoins[memecoin.id].change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}`}>
+                            {(memecoins[memecoin.id].cost * balances[index]).toFixed(2)} USD
                         </p>
                     </div>
                     <div className={`flex flex-row gap-6 justify-center items-center h-full
@@ -478,15 +543,15 @@ const App = () => {
                         <Line data={data[index]} className="w-full h-20" options={options} />
                         <div className="flex flex-col gap-1">
                             <p className={`text-xs text-slate-150 ml-8 text-center
-                                        ${memecoin.change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}
+                                        ${memecoins[memecoin.id].change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}
                                         `}>
-                                {memecoin.cost.toFixed(2)} USD
+                                {memecoins[memecoin.id].cost.toFixed(2)} USD
                             </p>
                             <p className={`text-xs text-slate-150 ml-8 text-center
-                                        ${memecoin.change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}
+                                        ${memecoins[memecoin.id].change >= 0 ? "text-[#46f041]" : "text-[#f64041]"}
                                         `}>
-                                {memecoin.change >= 0 ? "+" : ""}
-                                {memecoin.change.toFixed(1)}%
+                                {memecoins[memecoin.id].change >= 0 ? "+" : ""}
+                                {memecoins[memecoin.id].change.toFixed(1)}%
                             </p>
                         </div>
                     </div>
