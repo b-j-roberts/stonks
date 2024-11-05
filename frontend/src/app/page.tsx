@@ -491,10 +491,10 @@ const App = () => {
                               +1
                           </p>
                         ))}
-                        {memecoin.multiplier > 1 &&
+                        {memecoins[memecoin.id].multiplier > 1 &&
                         <p className="absolute top-[-5px] right-[-10px] text-xs text-[#f6f071] font-bold drop-shadow-lg p-1 z-10 cursor-none select-none
                             rotate-[45deg] drop-shadow-lg">
-                            {memecoin.multiplier}x
+                            {memecoins[memecoin.id].multiplier}x
                         </p>
                         }
                         <button
